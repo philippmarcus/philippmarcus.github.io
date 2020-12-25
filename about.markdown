@@ -4,15 +4,10 @@ title: About
 permalink: /about/
 ---
 
-This is the base Jekyll theme. You can find out more info about customizing your Jekyll theme, as well as basic Jekyll usage documentation at [jekyllrb.com](https://jekyllrb.com/)
+Welcome to my personal blog!
 
-You can find the source code for Minima at GitHub:
-[jekyll][jekyll-organization] /
-[minima](https://github.com/jekyll/minima)
+My name is Philipp Marcus, originally from Munich, Bavaria and currently located in Beijing, China. I am currently working as an IT manager and in my spare time I enjoy working on hands-on IT projects. Most of these currently come from the Udacity programs "Data Science Nanodegree" and "Self-driving Car Nanodegree". In addition, I also post projects and contributions that I create myself, e.g. on the subject of AWS cloud computing or networking.
 
-You can find the source code for Jekyll at GitHub:
-[jekyll][jekyll-organization] /
-[jekyll](https://github.com/jekyll/jekyll)
+Besides computer science and work, I love to go kayaking and road cycling, train martial arts and to go hiking in beautiful nature with friends. I am also a passionate hobby cook who constantly tries to produce authentic Chinese dishes.
 
-
-[jekyll-organization]: https://github.com/jekyll
+Before my current position, I worked as a research assitant with LMU Munich where I received the title of Dr. rer. nat. (PhD) in computer science. Before, during my studies I received a diploma with a major in computer science and a minor in physics, also from LMU Munich. The resulting research results are also linked on this page.
