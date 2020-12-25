@@ -1,53 +1,34 @@
-# Welcome to Jekyll!
-#
-# This config file is meant for settings that affect your whole blog, values
-# which you are expected to set up once and rarely edit after that. If you find
-# yourself editing this file very often, consider using Jekyll's data files
-# feature for the data you need to update frequently.
-#
-# For technical reasons, this file is *NOT* reloaded automatically when you use
-# 'bundle exec jekyll serve'. If you change this file, please restart the server process.
-#
-# If you need help with YAML syntax, here are some quick references for you: 
-# https://learn-the-web.algonquindesign.ca/topics/markdown-yaml-cheat-sheet/#yaml
-# https://learnxinyminutes.com/docs/yaml/
-#
-# Site settings
-# These are used to personalize your new site. If you look in the HTML files,
-# you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
-# You can create any custom variable you would like, and they will be accessible
-# in the templates via {{ site.myvariable }}.
-
-title: philipp marcus // blog
-email: marcus@cip.ifi.lmu.de
-description: >- # this means to ignore newlines until "baseurl:"
-  This blog is about my projects related to AWS, Data Science, Self-Driving Cars, scientific publications and profile.
+title: Personal Blog of Philipp Marcus
+description: > # this means to ignore newlines until "baseurl:"
+  This is the computer science blog of Philipp Marcus. Here, you'll find posts about Data Science, Machine Learning, Self-Driving Cars, Amazon Web Services (AWS) and Distributed Systems.
+permalink: ':title/'
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://philippmarcus.github.io" # the base hostname & protocol for your site, e.g. http://example.com
-linkedin_username: philipp-marcus
-github_username:  philippmarcus
+site-twitter: #if your site has a twitter account, enter it here
 
-# Build settings
-theme: jekyll-theme-minimal
+# Author Settings
+author: Dr. Philipp Marcus # add your name
+author-img: philipp-marcus.jpg # add your photo
+about-author: I am a computer scientist focussing on distributed and mobile systems, as well as data science. Always hungry to keep exploring. # add description
+social-github: philippmarcus # add your Github handle
+social-linkedin: philipp-marcus # add your Linkedin handle
+social-email: marcus@cip.ifi.lmu.de # add your Email address
+social-facebook: false
+
+# Disqus
+discus-identifier: mr-brown # add your discus identifier
+
+# Tracker
+analytics: # Google Analytics
+
+# Build Settings
+markdown: kramdown
 plugins:
-  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-paginate
+  - jemoji
 
-# Exclude from processing.
-# The following items will not be processed, by default.
-# Any item listed under the `exclude:` key here will be automatically added to
-# the internal "default list".
-#
-# Excluded items can be processed by explicitly listing the directories or
-# their entries' file path in the `include:` list.
-#
-# exclude:
-#   - .sass-cache/
-#   - .jekyll-cache/
-#   - gemfiles/
-#   - Gemfile
-#   - Gemfile.lock
-#   - node_modules/
-#   - vendor/bundle/
-#   - vendor/cache/
-#   - vendor/gems/
-#   - vendor/ruby/
+paginate: 8
+paginate_path: "/page/:num"
+
+exclude: ["node_modules", "gulpfile.js", "package.json", "yarn.lock"]
