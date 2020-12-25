@@ -28,7 +28,7 @@ linkedin_username: philipp-marcus
 github_username:  philippmarcus
 
 # Build settings
-theme: minima
+theme: jekyll-theme-minimal
 plugins:
   - jekyll-feed
 
