@@ -11,7 +11,7 @@ author: Dr. Philipp Marcus # add your name
 author-img: philipp-marcus.jpg # add your photo
 about-author: I am a computer scientist focussing on distributed and mobile systems, as well as data science. Always hungry to keep exploring. # add description
 social-github: philippmarcus # add your Github handle
-social-linkedin: philipp-marcus # add your Linkedin handle
+social-linkedin: https-philippmarcus-github-io # add your Linkedin handle
 social-email: marcus@cip.ifi.lmu.de # add your Email address
 
 # Disqus
