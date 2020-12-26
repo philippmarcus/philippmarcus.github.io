@@ -2,7 +2,7 @@ title: Personal Blog of Philipp Marcus
 description: > # this means to ignore newlines until "baseurl:"
   This is the computer science blog of Philipp Marcus. Here, you'll find posts about Data Science, Machine Learning, Self-Driving Cars, Amazon Web Services (AWS) and Distributed Systems.
 permalink: ':title/'
-baseurl: "/" # the subpath of your site, e.g. /blog
+baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 site-twitter: nil #if your site has a twitter account, enter it here
 
@@ -15,7 +15,7 @@ social-linkedin: philipp-marcus # add your Linkedin handle
 social-email: marcus@cip.ifi.lmu.de # add your Email address
 
 # Disqus
-discus-identifier: mr-brown # add your discus identifier
+discus-identifier: philippmarcus # add your discus identifier
 
 # Tracker
 analytics: # Google Analytics
