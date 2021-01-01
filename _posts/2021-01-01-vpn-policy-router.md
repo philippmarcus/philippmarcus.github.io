@@ -1,9 +1,9 @@
 ---
 layout: post
 title: Traffic Split VPN routing on a Raspberry Pi with Policy Routing 
-date: 2019-01-20 13:32:20 +0300
+date: 2021-01-1 13:32:20 +0300
 description: Policy Routing with OpenVPN and the local internet connection based on the geo-location of targets.
-img: vpn-policy-router/banner.png # Add image post (optional)
+img: vpn-policy-router/figure-setup.png # Add image post (optional)
 fig-caption: # Add figcaption (optional)
 excerpt_separator: <!--more-->
 tags: [Policy Routing, Raspberry Pi, OpenVPN, IPTables]
