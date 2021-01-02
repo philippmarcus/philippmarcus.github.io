@@ -29,6 +29,8 @@ The traffic split functionality in the Raspberry Pi is configured to separate ou
 
 The solution will allow domestic websites to be accessed via a faster, direct connection and international websites via VPN to circumvent geolocation access restrictions.
 
+The code of this tutorial can be found in my Github repository: [https://github.com/philippmarcus/vpn-policy-router](https://github.com/philippmarcus/vpn-policy-router).
+
 # Configuring Raspberry Pi as a Router
 
 So that the Raspberry Pi can work as a router in our setup, IP forwarding must be activated. This allows the Raspberry Pi to also accept IP packets that are not intended for it.
