@@ -17,7 +17,7 @@ The charm of the solution is that the existing WLAN can continue to be used unch
 
 <!--more-->
 
-## Overview of the Setup
+# Overview of the Setup
 
 The following figure shows the setup that we will build up in this tutorial:
 
@@ -29,7 +29,7 @@ The traffic split functionality in the Raspberry Pi is configured to separate ou
 
 The solution will allow domestic websites to be accessed via a faster, direct connection and international websites via VPN to circumvent geolocation access restrictions.
 
-## Configuring Raspberry Pi as a Router
+# Configuring Raspberry Pi as a Router
 
 So that the Raspberry Pi can work as a router in our setup, IP forwarding must be activated. This allows the Raspberry Pi to also accept IP packets that are not intended for it.
 
@@ -49,15 +49,15 @@ In our case, IP forwarding is sufficient, we do not need masquerading, as this i
 
 ***Warning*** if you have a firewall like ufw installed, it could block your IP forwarding. You have to allow this first in your firewall config, for example follow this post for ufw: [https://askubuntu.com/questions/161346/how-to-configure-ufw-to-allow-ip-forwarding](https://askubuntu.com/questions/161346/how-to-configure-ufw-to-allow-ip-forwarding). This tutorial was tested with ufw deactivated.
 
-## Setting up OpenVPN
+# Setting up OpenVPN
 
 First of all, OpenVPN must be installed and set up on the Raspberry Pi. The standard process can be followed. Thus, this tutorial will not go into this in more detail.
 
-## Installing Required Packages
+# Installing Required Packages
 
 We have to install the GeoIP extension for IPTables and other packages as described below.
 
-### Installing the GeoIP Add-on for IPTables
+## Installing the GeoIP Add-on for IPTables
 
 To mark IP packets based on the destination IP, we need the IPtables add-ons, which have to be installed as kernel modules. At the time of writing this tutorial, the corresponding package `xtables-addons-common` in Raspbian Buster was obviously faulty, which meant that the module had to be compiled manually. If this package is fixed in the future, you can basically [follow this tutorial] (https://www.linux-tips-and-tricks.de/en/raspberry/499-how-to-block-ip-ranges- with-geoip-on-raspbian /). The source code to be compiled can be found at [https://inai.de/projects/xtables-addons/](https://inai.de/projects/xtables-addons/). A prerequisite is that the `raspbian-kernel-headers` packages are installed beforehand. The following script checks out the add-on, does the compilation, and ensures that it is loaded every time it boots:
 
@@ -137,11 +137,11 @@ The following entry is defined, whereby the times can be adjusted as required:
 
 The database is now automatically updated every 7th day of the week. To make this script work, we have to install also the packages outlined in the next section.
 
-### Other required packages
+## Other required packages
 
 In a script shown below, we also use the package `ipcalc`. As the downloader scripts for the geoip databases are written in Perl, we also need to install the according Perl libraries `libtext-csv-xs-perl`.
 
-## Automatic Setup of Policy Routing
+# Automatic Setup of Policy Routing
 
 When OpenVPN starts up the connection there is the possibility to run a setup script via a hook. The same applies to terminating connections. We will use this possibility to adapt the routing of the Raspberry Pi accordingly. Roughly speaking, the solution will take the following steps:
 
@@ -150,7 +150,7 @@ When OpenVPN starts up the connection there is the possibility to run a setup sc
 
 These configurations are carried out in a script `up.sh`, which is called automatically by OpenVPN with the relevant parameters when the connection is established. They are made undone in a script `down.sh` as soon as OpenVPN disconnects.
 
-### Marking IP Packages with Linux Netfilter and IPTables
+## Marking IP Packages with Linux Netfilter and IPTables
 
 To set the markers described, two Linux mechanisms are used, which are briefly described below for better understanding, Netfilter and IPTables.
 
@@ -208,7 +208,7 @@ To adapt this example to your own situation, you have to replace the country cod
 
 Is the marker also applied to packets that are generated locally by the Raspberry Pi? If we look at the DAG shown above, it becomes clear that locally generated packets never flow through the `PREROUTING` chains. So we know that our markers defined above are only applied to incoming IP packets on the RaspberryPi.
 
-### Defining Policy Routing Tables
+## Defining Policy Routing Tables
 
 Three routing tables are created in by the kernel during startup and form the routing policy database (RPDB) of our system:
 
@@ -255,7 +255,7 @@ The used `prohibit` routing rule is defined according to the ip-route manpage as
 
 Later, when our OpenVPN connection is established, we will additionally add routing rules to the international table, which route via the tunnel by default.
 
-### Defining OpenVPN up and down Scripts
+## Defining OpenVPN up and down Scripts
 
 Traffic to domestic destinations is routed through the domestic table, which we populate using the same home WAN router as in the main table:
 
@@ -310,7 +310,7 @@ Also used are the variables `$ dev` and` $ route_vpn_gateway`, which OpenVPN set
 
 If clients now use the Raspberry Pi as a gateway/router, you can check whether the correct routing table is being used via `tracert <ip>` (Windows) or `traceroute <ip>` (Linux), depending on the destination address.
 
-### Package Flow when the Tunnel is Up
+## Package Flow when the Tunnel is Up
 
 In this section, the package flow in the system should be traced in detail for better understanding.
 
@@ -318,7 +318,7 @@ In this section, the package flow in the system should be traced in detail for b
 
 Based on this figure, the routing processes are discussed below.
 
-#### Routing Flow for International Packages
+### Routing Flow for International Packages
 
 Based on the above figure, the following flow results for outgoing packages to international destinations:
 
@@ -334,7 +334,7 @@ Based on the above figure, the following flow results for outgoing packages to i
 
 If the response packets arrive at tun0, the flow essentially runs backward. However, there is the difference that the response packets from international destinations do not get a marker (marker rule was restricted with `-i`). Thus, IP-Rule routes the response via the main routing table back to the local network PC. This works because the main routing table contains a route to this subnet.
 
-#### Routing Flow for Domestic Packages
+### Routing Flow for Domestic Packages
 
 If a PC in the local network routes a package via the Raspberry Pi to domestic destinations, the following workflow runs:
 
@@ -346,7 +346,7 @@ If a PC in the local network routes a package via the Raspberry Pi to domestic d
 
 The response flow is essentially exactly the opposite direction, whereby the response has no marker and is thus routed again via the main routing table to the PC in the local network via eth0.
 
-### Lessons Learned und Debugging
+## Lessons Learned und Debugging
 
 Perhaps my biggest learning step in this project was how to use the debugging tools correctly. At first, I forgot to restrict the marking only to packets received via the eth0 interface. The consequence of this was that 
 VPN packets that were to be routed back to a computer in the LAN via tun0 also have received this marker and consequently were sent to the domestic routing table. There, no matching rule was found for packets towards the home network. Thus, only domestic routing worked in the beginning, but not international routing.
@@ -387,7 +387,7 @@ However, tcpdump cannot display the set markers. It only served me to show that 
 
 It has also proven helpful to check the routing tables on the clients to see whether the Raspberry Pi or the Internet router is being used. On Windows this is done with `route PRINT` and on Linux as mentioned above e.g. with `ip route show`.
 
-## Conclusion
+# Conclusion
 
 In this article, I presented my Raspberry Pi based solution for a VPN traffic split router. The Raspberry Pi coexists as a router in the same subnet as the WAN internet router and can be used as a router by individual devices if required. The traffic split functionality separates outgoing routing traffic based on the country in which the destination is located, with domestic and international destinations being distinguished. IPTables was used to mark IP packets with the correct marker. Separate routing tables with policy routing were created for domestic and international destinations and selected based on that marker. Traffic to international destinations is routed via the OpenVPN tunnel and traffic to domestic destinations is routed via the normal WAN internet router in the same subnet.
 
