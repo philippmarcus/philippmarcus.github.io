@@ -44,7 +44,7 @@ net.ipv4.ip_forward=1
 So that this is activated immediately and not only after a reboot, we also execute:
 
 ```
-sudo sh -c "echo 1 > /proc/sys/net/ipv4/ip_forward"
+sudo sysctl -w net.ipv4.ip_forward=1
 ```
 
 In our case, IP forwarding is sufficient, we do not need masquerading, as this is done by the default home router and the VPN server respectively.
@@ -64,11 +64,9 @@ We have to install the GeoIP extension for IPTables and other packages as descri
 To mark IP packets based on the destination IP, we need the IPtables add-ons, which have to be installed as kernel modules. At the time of writing this tutorial, the corresponding package `xtables-addons-common` in Raspbian Buster was obviously faulty, which meant that the module had to be compiled manually. If this package is fixed in the future, you can basically [follow this tutorial] (https://www.linux-tips-and-tricks.de/en/raspberry/499-how-to-block-ip-ranges- with-geoip-on-raspbian /). The source code to be compiled can be found at [https://inai.de/projects/xtables-addons/](https://inai.de/projects/xtables-addons/). A prerequisite is that the `raspbian-kernel-headers` packages are installed beforehand. The following script checks out the add-on, does the compilation, and ensures that it is loaded every time it boots:
 
 ~~~ shell
-cd ~
 git clone https://git.inai.de/xtables-addons
 cd xtables-addons
 
-# This step is necessary on Raspbian Buster but not part of the official docu
 autoreconf -i
 
 ./configure
@@ -95,11 +93,11 @@ chmod 700 cron_job_geoip
 The CLI tool `xt_geoip_dl_maxmind` that our CRON job will execute requires you to have a license key available, which can be obtained by registering with MindMax for free: [https://www.maxmind.com/en/geolite2/signup](https://www.maxmind.com/en/geolite2/signup). Store this license key:
 
 ~~~shell
-echo <your license key here> >> ~/cron_job_geoip/.mindmax_license_key
-chmod 700 ~/cron_job_geoip/.mindmax_license_key
+echo <your license key here> >> ~/cron_job_geoip/mindmax_license_key
+chmod 700 ~/cron_job_geoip/mindmax_license_key
 ~~~
  
-To ensure that the GeoIP database is regularly updated, we create a script `geoip-db` in `~/ cron_job_geoip/`, an adapted version of [^9]:
+To ensure that the GeoIP database is regularly updated, we create a script `geoip-db` in `~/cron_job_geoip/`, an adapted version of [^9]:
 
 ~~~shell
 #!/bin/bash
@@ -125,7 +123,7 @@ Set the authorization:
 chmod 700 ~/cron_job_geoip/geoip_db
 ~~~
 
-After that the cron job is defined [^8]. We call and select `nano` as editor:
+After that the cron job is defined [^8]. We call and select an editor of your preferance:
 
 ~~~ shell
 crontab -e
@@ -134,7 +132,7 @@ crontab -e
 The following entry is defined, whereby the times can be adjusted as required:
 
 ~~~ shell
-0 	0 	* 	* 	7 	geoip_db
+0 0 * * 7 geoip_db
 ~~~
 
 The database is now automatically updated every 7th day of the week. To make this script work, we have to install also the packages outlined in the next section.
@@ -158,13 +156,13 @@ To set the markers described, two Linux mechanisms are used, which are briefly d
 
 The IPv4 protocol stack in the Linux kernel is implemented as a directed acyclic graph (DAG) which is traversed by IP packets. Netfilter is a mechanism in the Linux kernel that allows other kernel modules to register their own functions as callbacks/hooks on nodes of that DAG. These callbacks are then executed as soon as an IP packet passes the registered node in this graph. The callback function has, among other things, the ability to return a tampered version of the packet to Netfilter or to instruct Netfilter to accept or delete the packet.
 
-We will use the ability to manipulate IP packets to set the marker that determines whether the IP packet should reach a domestic or a foreign destination. This marker is a logical marker within the Linux protocol stack, i.e. it will no longer be visible on the outgoing IP packet.
+We will use the ability to manipulate IP packets to set the marker that determines whether the IP packet should reach a domestic or a foreign destination. This marker is a logical marker within the Linux protocol stack, i.e. it will no longer be visible on the outgoing IP packet [^11].
 
-![The simplified IPv4 traversal diagram with Netfilter hooks in blue boxes [1].](/assets/img/vpn-policy-router/figure-hooks.png)
+![The simplified IPv4 traversal diagram with Netfilter hooks in blue boxes [^11].](/assets/img/vpn-policy-router/figure-hooks.png)
 
 [^1]: [https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html](https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html)
 
-IPTables is a program for IPv4 and IPv6 packet filtering and NAT that runs in the userspace and will help us to set these markers. It registers itself as callback function for Netfilter hooks by utilizing its associated kernel modules. When invoked by the hook, it applies its internally stored rules on transferred IP packets. The ultimate goal of these rules is, as described above, to instruct Netfilter whether the packet should be accepted, deleted, or to return a modified version of the packet to Netfilter for the further course in the DAG.
+IPTables is a program for IPv4 and IPv6 packet filtering and NAT that runs in the kernel and will help us to set these markers. It is indirectly registered as callback function for Netfilter hooks by its associated kernel modules. When invoked by the hook, it applies its internally stored rules on transferred IP packets. Those rules can be manipulated by the userspace CLI tool `iptables`. The ultimate goal of these rules is, as described above, to instruct Netfilter whether the packet should be accepted, deleted, or to return a modified version of the packet to Netfilter for the further course in the DAG.
 
 Depending on which hook is triggered by Netfilter, IPTables sequentially processes a list of chains. Chains contain the actual rules. Within IPTables, chains are grouped logically in tables, whereby roughly speaking tables correspond to dedicated certain task areas, for example, NAT or packet filtering. This has the advantage that there is always exactly one suitable table for every type of rule. The `man iptables` describes a total of 5 tables:
 
@@ -174,9 +172,9 @@ Depending on which hook is triggered by Netfilter, IPTables sequentially process
 - `raw`: This  table  is  used mainly for configuring exemptions from connection tracking in combination with the NOTRACK  target.
 - `security`: This  table  is used for Mandatory Access Control (MAC) net‐working rules, such as those enabled  by  the SECMARK and CONNSECMARK  targets.
 
-Transferred to the above DAG, the processing logic of IPtables can then be understood as follows:
+Transferred to the above DAG, the processing logic of IPtables can then be understood as follows [^11]:
 
-![IPTables registers a sequence of chains for each Netfilter callback.](/assets/img/vpn-policy-router/figure-chains.png)
+![IPTables registers a sequence of chains for each Netfilter callback [^11].](/assets/img/vpn-policy-router/figure-chains.png)
 
 For example, if the `INPUT` hook is triggered in the above figure, the associated chains are processed sequentially, with each chain containing a list of rules. The rules in the chains essentially contain a condition and a target/jump.
 
@@ -401,7 +399,7 @@ Another possible improvement would be to configure a DHCP server directly on the
 
 I hope that this project is also helpful for others and contributes to a better understanding of routing and iptables.
 
-
+[^11]: [https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html)(https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html)
 [^2]: [https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-4.html#ss4.1] (https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-4.html#ss4.1)
 [^3]: [http://www.faqs.org/docs/iptables/targets.html](http://www.faqs.org/docs/iptables/targets.html)
 [^4]: [https://openvpn.net/community-resources/reference-manual-for-openvpn-2-4/](https://openvpn.net/community-resources/reference-manual-for-openvpn-2-4/)
