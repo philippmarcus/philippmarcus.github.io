@@ -66,7 +66,7 @@ cd ~
 git clone https://git.inai.de/xtables-addons
 cd xtables-addons
 
-# This step is necessary on Raspian Buster but not part of the official docu
+# This step is necessary on Raspbian Buster but not part of the official docu
 autoreconf -i
 
 ./configure
@@ -74,7 +74,7 @@ make
 make install
 
 # Index newly created modules
-demod -a
+depmod -a
 
 # Load the xt_geoip module for this session
 modprobe xt_geoip
@@ -90,7 +90,7 @@ mkdir ~/cron_job_geoip
 chmod 700 cron_job_geoip
 ~~~
 
-The CLI tool `xt_geoip_dl_maxmind` that our CRON job will execute requires you to have a license key available, which can be obtained by registerind with MindMax for free: [https://www.maxmind.com/en/geolite2/signup](https://www.maxmind.com/en/geolite2/signup). Store this license key:
+The CLI tool `xt_geoip_dl_maxmind` that our CRON job will execute requires you to have a license key available, which can be obtained by registering with MindMax for free: [https://www.maxmind.com/en/geolite2/signup](https://www.maxmind.com/en/geolite2/signup). Store this license key:
 
 ~~~shell
 echo <your license key here> >> ~/cron_job_geoip/.mindmax_license_key
@@ -210,7 +210,7 @@ Is the marker also applied to packets that are generated locally by the Raspberr
 
 ### Defining Policy Routing Tables
 
-Three routing tables are created in the system as standard:
+Three routing tables are created in by the kernel during startup and form the routing policy database (RPDB) of our system:
 
 ~~~shell
 $ ip rule show
@@ -219,9 +219,9 @@ $ ip rule show
 > 32767:	from all lookup default
 ~~~
 
-These tables are run through with increasing priority from 0 - 32767 until a routing rule that applies is found in a table. Policy routing now allows us to add further tables so that a different routing table is used depending on the marker set in the IP packet. To do this we need two tools, `ip-rule` and` ip-route`. The former is a routing policy database (RPDB) management tool and is used to create the two routing tables. The latter is used for routing table management and is used to fill the two defined routing tables with rules.
+Every entry is a rule with an assigned priority, a selector and an action. In the above default RPDB, the selector is `from all` and the action are the names of the three route tables. When a new package arrives in the routing module, these rules are evaluated step by step with increasing priority from 0 - 32767 until the selector of a rule applies. The actions shown above all point to routing tables (local, main, default). The routing module then scans the selected routing table for a matching rule and stops if it has a match. Otherwise the IP rule list is further processed.
 
-We are now adding two routing tables, one each for routing traffic to international and domestic targets:
+With the tool `ip-rule` we now add a rule to the RPDB that has a selector `fwmark` based on the marker that we set in the package before, and an action that points either to an international or domestic routing table that we will populate later. We are now adding the rules to the RPDB, one each for routing traffic to international and domestic targets:
 
 ~~~shell
 # routing table for IP packets towards international destinations
@@ -236,16 +236,16 @@ Now our two routing tables have been created and the condition for `fwmark` is v
 ~~~shell
 $ ip rule show
 > 0:		from all lookup local
-> 32764:	from all fwmark 0x3 lookup domestic
-> 32765:	from all fwmark 0x2 lookup international
+> 15000:	from all fwmark 0x2 lookup international
+> 15100:	from all fwmark 0x3 lookup domestic
 > 32766:	from all lookup main
 > 32767:	from all lookup default
 ~~~
 
-If a local computer connected via the local LAN now uses the Raspberry Pi as a router/gateway, the packets get correctly marked now. Since the two new routing tables are still empty, no match is found in them, and the evaluation proceeds to the table `main`. To change this, we add a rule to the routing table for international traffic that prohibits any traffic by default:
+If a local computer connected now via LAN and uses the Raspberry Pi as a router/gateway, the packets get correctly marked now. Since the two new referenced routing tables are still empty, no match is found in them, and the evaluation proceeds to the table `main`. To change this, we use the tool `ip-route` to add a rule to the routing table for international traffic that prohibits any traffic by default:
 
 ~~~ shell
-# Prohibit packets towards international destinations (overriden by up.sh)
+# Prohibit packets towards international destinations (overridden by up.sh)
 sudo ip route add prohibit default table international
 ~~~
 
@@ -253,7 +253,7 @@ The used `prohibit` routing rule is defined according to the ip-route manpage as
 
 > prohibit - the rule prescribes to generate 'Communication is administratively prohibited' error.
 
-Later, when our OpenVPN connection is established, we will add routing rules to the international table, which route via the tunnel by default.
+Later, when our OpenVPN connection is established, we will additionally add routing rules to the international table, which route via the tunnel by default.
 
 ### Defining OpenVPN up and down Scripts
 
@@ -323,7 +323,7 @@ Based on this figure, the routing processes are discussed below.
 Based on the above figure, the following flow results for outgoing packages to international destinations:
 
 - Packet arrives from PC in local network on eth0
-- (1): REROUTING mangle sets marker 2 on the package
+- (1): PREROUTING mangle sets marker 2 on the package
 - (2): IP-Rule selects the table internationally and recognizes that the packet must be routed via tun0
 - (3): No special action.
 - (4): SNAT is applied to the packets and written to the tun0 device
@@ -389,7 +389,7 @@ It has also proven helpful to check the routing tables on the clients to see whe
 
 ## Conclusion
 
-In this article, I presented my Rasperry Pi based solution for a VPN traffic split router. The Raspberry Pi coexists as a router in the same subnet as the WAN internet router and can be used as a router by individual devices if required. The traffic split functionality separates outgoing routing traffic based on the country in which the destination is located, with domestic and international destinations being distinguished. IPTables was used to mark IP packets with the correct marker. Separate routing tables with policy routing were created for domestic and international destinations and selected based on that marker. Traffic to international destinations is routed via the OpenVPN tunnel and traffic to domestic destinations is routed via the normal WAN internet router in the same subnet.
+In this article, I presented my Raspberry Pi based solution for a VPN traffic split router. The Raspberry Pi coexists as a router in the same subnet as the WAN internet router and can be used as a router by individual devices if required. The traffic split functionality separates outgoing routing traffic based on the country in which the destination is located, with domestic and international destinations being distinguished. IPTables was used to mark IP packets with the correct marker. Separate routing tables with policy routing were created for domestic and international destinations and selected based on that marker. Traffic to international destinations is routed via the OpenVPN tunnel and traffic to domestic destinations is routed via the normal WAN internet router in the same subnet.
 
 The solution now allows domestic websites to be accessed via a faster, direct connection and international websites via VPN to circumvent geolocation access restrictions.
 
