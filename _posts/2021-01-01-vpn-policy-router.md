@@ -8,7 +8,7 @@ fig-caption: # Add figcaption (optional)
 excerpt_separator: <!--more-->
 tags: [Policy Routing, Raspberry Pi, OpenVPN, IPTables]
 ---
-
+Raspberry Pi OpenVPN IPTables
 Media content such as news or streaming is often restricted to certain geolocations. This can be avoided by setting up a VPN on your home NAT router that tunnels to permitted geolocations, but then all traffic will be routed via that VPN interface. For local, domestic websites, this can either bring speed disadvantages or, in the most annoying case, new access restrictions.
 
 This article describes a solution to this problem, whereby a Raspberry Pi is set up as a NAT router which routes ip packets to the internet either via the broadband router or a VPN tunnel depending on the destination of the respective IP packet, just like a traffic split functionality. If the IP packet has a domestic destination, the broadband router is used, otherwise the VPN tunnel device. The solution is based on OpenVPN, IPTables with the geoip add-on and Linux Policy Routing. The article assumes that you have access to a remote OpenVPN server for example NordVPN and that you have a local Raspberry Pi.
@@ -194,17 +194,21 @@ The condition can be defined via the previously installed `geoip` module:
 iptables -A PREROUTING -t mangle -m geoip --src-cc country[,country...] --dst-cc country[,country...]
 ~~~
 
-The condition can be negated with a `!`, whereby the rule then applies to all traffic that does not apply to the defined destination country code. With this knowledge, we define in the table `mangle` in the chain` prerouting` a rule for setting the marker 2 and 3, whereby we use the geoip module as a condition and only want to mark traffic coming from eth0 (no traffic coming from the tunnel):
+The condition can be negated with a `!`, whereby the rule then applies to all traffic that does not apply to the defined destination country code. With this knowledge, we define in the table `mangle` in the chain` prerouting` a rule for setting the marker 2 and 3, whereby we use the geoip module as a condition and only want to mark traffic coming from eth0 (no traffic coming from the tunnel) and traffic towards the internet:
 
 ~~~ shell
-# mark packages to international destinations (outside of Germany) with marker 2
-sudo iptables -A PREROUTING -t mangle -m geoip ! --dst-cc DE -i eth0 -j MARK --set-mark 2
+# Derive the subnet for eth0
+dev="eth0"
+dev_subnet_cidr=$(ipcalc $(ip -o -f inet addr show $dev | awk '/scope global/ {print $4}') | awk '/Network:/ {print $2}')
 
-# mark packages to domestic locations (Germany in my case) with marker 3
-sudo iptables -A PREROUTING -t mangle -m geoip --dst-cc DE -i eth0 -j MARK --set-mark 3
+# mark outgoing packages to international destinations (outside of Germany) with marker 2
+sudo iptables -A PREROUTING -t mangle -m geoip ! --dst-cc CN -i $dev -j MARK --set-mark 2
+
+# mark outgoing packages to domestic locations (Germany in my case) with marker 3
+sudo iptables -A PREROUTING -t mangle -m geoip --dst-cc CN -i $dev ! -d $dev_subnet_cidr -j MARK --set-mark 3
 ~~~
 
-To adapt this example to your own situation, you have to replace the country code `DE` with the country code of the country in which the RaspberryPi is located. In the next step, we have to define a separate routing table for marker 2 and 3.
+The variable `dev_subnet_cidr` used at the top of this script will in my case hold the value `192.168.0.0/24`. To adapt this example to your own situation, you have to replace the variable `dev` with the name of your local network adapter and the country code `DE` with the country code of the country in which the RaspberryPi is located. In the next step, we have to define a separate routing table for marker 2 and 3.
 
 Is the marker also applied to packets that are generated locally by the Raspberry Pi? If we look at the DAG shown above, it becomes clear that locally generated packets never flow through the `PREROUTING` chains. So we know that our markers defined above are only applied to incoming IP packets on the RaspberryPi.
 
@@ -221,14 +225,14 @@ $ ip rule show
 
 Every entry is a rule with an assigned priority, a selector and an action. In the above default RPDB, the selector is `from all` and the action are the names of the three route tables. When a new package arrives in the routing module, these rules are evaluated step by step with increasing priority from 0 - 32767 until the selector of a rule applies. The actions shown above all point to routing tables (local, main, default). The routing module then scans the selected routing table for a matching rule and stops if it has a match. Otherwise the IP rule list is further processed.
 
-With the tool `ip-rule` we now add a rule to the RPDB that has a selector `fwmark` based on the marker that we set in the package before, and an action that points either to an international or domestic routing table that we will populate later. We are now adding the rules to the RPDB, one each for routing traffic to international and domestic targets:
+With the tool `ip-rule` we now add a rule to the RPDB that has a selector `fwmark` based on the marker that we set in the package before, and an action that points either to an international or domestic routing table that we will populate later:
 
 ~~~shell
 # routing table for IP packets towards international destinations
-sudo ip rule add fwmark 2 table international prio 15000
+sudo ip rule add fwmark 2 table 2 prio 15000
 
 # routing table for IP packets towards domestic destinations
-sudo ip rule add fwmark 3 table domestic prio 15100
+sudo ip rule add fwmark 3 table 3 prio 15100
 ~~~
 
 Now our two routing tables have been created and the condition for `fwmark` is visible:
@@ -236,8 +240,8 @@ Now our two routing tables have been created and the condition for `fwmark` is v
 ~~~shell
 $ ip rule show
 > 0:		from all lookup local
-> 15000:	from all fwmark 0x2 lookup international
-> 15100:	from all fwmark 0x3 lookup domestic
+> 15000:	from all fwmark 0x2 lookup 2
+> 15100:	from all fwmark 0x3 lookup 3
 > 32766:	from all lookup main
 > 32767:	from all lookup default
 ~~~
@@ -246,7 +250,7 @@ If a local computer connected now via LAN and uses the Raspberry Pi as a router/
 
 ~~~ shell
 # Prohibit packets towards international destinations (overridden by up.sh)
-sudo ip route add prohibit default table international
+sudo ip route add prohibit default table 2
 ~~~
 
 The used `prohibit` routing rule is defined according to the ip-route manpage as:
@@ -261,19 +265,14 @@ Traffic to domestic destinations is routed through the domestic table, which we 
 
 ~~~ shell
 # Route for domestic packets
-eth0_network=$(ipcalc $(ip -o -f inet addr show eth0 | awk '/scope global/ {print $4}') | awk '/Network:/ {print $2}')
-eth0_ip=$(ifconfig eth0 | grep "inet " | awk '{print $2}')
-router_ip="192.168.0.1"
-
-sudo ip route add 0.0.0.0/1 table 3 via $router_ip dev eth0
-sudo ip route add 128.0.0.0/1 table 3 via $router_ip dev eth0
-sudo ip route add $eth0_network table 3 dev eth0 proto kernel scope link src $eth0_ip
+sudo ip route add default table 3 via $router_ip dev $dev
 ~~~
 
 OpenVPN can execute a script `up` and` down` when establishing and disconnecting a connection. This can be added in the `.ovpn` configuration file with` up up.sh` and `down down.sh`. The script `up.sh`, which is executed after VPN connection establishment, must extend the international routing table with default routes over the newly installed tunnel device. We define the file `up.sh`:
 
 ~~~ shell
 #!/bin/bash
+
 # Configure tunnel as default routes for table international
 sudo ip route add 0.0.0.0/1 via $route_vpn_gateway dev $dev table 2
 sudo ip route add 128.0.0.0/1 via $route_vpn_gateway dev $dev table 2
@@ -293,6 +292,7 @@ So that this configuration can be made undone when the VPN connection is disconn
 
 ~~~ shell
 #!/bin/bash
+
 # Remove tunnel as default routes for table international
 sudo ip route del $untrusted_ip via $route_net_gateway dev eth0 table 2
 sudo ip route del $eth0_network dev eth0 proto dhcp scope link src $eth0_ip metric 202 table 2
