@@ -158,7 +158,7 @@ The IPv4 protocol stack in the Linux kernel is implemented as a directed acyclic
 
 We will use the ability to manipulate IP packets to set the marker that determines whether the IP packet should reach a domestic or a foreign destination. This marker is a logical marker within the Linux protocol stack, i.e. it will no longer be visible on the outgoing IP packet [^11].
 
-![The simplified IPv4 traversal diagram with Netfilter hooks in blue boxes [^11].](/assets/img/vpn-policy-router/figure-hooks.png)
+![The simplified IPv4 traversal diagram with Netfilter hooks in blue boxes.](/assets/img/vpn-policy-router/figure-hooks.png)
 
 [^1]: [https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html](https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html)
 
@@ -174,7 +174,7 @@ Depending on which hook is triggered by Netfilter, IPTables sequentially process
 
 Transferred to the above DAG, the processing logic of IPtables can then be understood as follows [^11]:
 
-![IPTables registers a sequence of chains for each Netfilter callback [^11].](/assets/img/vpn-policy-router/figure-chains.png)
+![IPTables registers a sequence of chains for each Netfilter callback.](/assets/img/vpn-policy-router/figure-chains.png)
 
 For example, if the `INPUT` hook is triggered in the above figure, the associated chains are processed sequentially, with each chain containing a list of rules. The rules in the chains essentially contain a condition and a target/jump.
 
@@ -399,7 +399,7 @@ Another possible improvement would be to configure a DHCP server directly on the
 
 I hope that this project is also helpful for others and contributes to a better understanding of routing and iptables.
 
-[^11]: [https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html)(https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html)
+[^11]: [https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html](https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-3.html)
 [^2]: [https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-4.html#ss4.1] (https://www.netfilter.org/documentation/HOWTO/netfilter-hacking-HOWTO-4.html#ss4.1)
 [^3]: [http://www.faqs.org/docs/iptables/targets.html](http://www.faqs.org/docs/iptables/targets.html)
 [^4]: [https://openvpn.net/community-resources/reference-manual-for-openvpn-2-4/](https://openvpn.net/community-resources/reference-manual-for-openvpn-2-4/)
