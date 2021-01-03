@@ -180,12 +180,12 @@ For example, if the `INPUT` hook is triggered in the above figure, the associate
 
 A target is a concrete action that is applied to the IP packet. As described above, the most common options are to accept, reject or manipulate the package. Acceptance or rejection is usually determined by `-j ACCEPT` or` -j DROP`. When a rule is executed with one of these two targets, a decision has been made for this hook. Thus, IPTables stops the further evaluation of chains/rules for this hook and passes the decision as return value back to Netfilter.
 
-Some targets can manipulate the IP packet by using a built-in procedure on the IP packet. This procedure returns the manipulated IP packet to the rule. The further execution of the chain is then done with this manipulated IP packet. Common built-in functions are `log`,` MASQUERADE`, and `MARK` that we will use. With a jump, the further execution can be delegated to a custom chain, after which the chain jumps back to the calling chain. We do not need this option for the tutorial [^3].
+Some targets can manipulate the IP packet by using a built-in procedure that returns a manipulated version back to the rule. The further execution of the chain is then done with this manipulated IP packet. Common built-in functions are `log`,` MASQUERADE`, and `MARK` that we will use. With a jump, the further execution can be delegated to a custom chain, after which the chain jumps back to the calling chain. We do not need this option for the tutorial [^3].
 
 For the rule for marking the IP packets in this project we will need the table `mangle`, and have to work with the` PREROUTING` chain, because we have to start the hook `NF_IP_PRE_ROUTING` before the routing takes over. The table can be defined with the `-t mangle` option and the command to append our rule to a chain is defined by the `-A PREROUTING` option. In our command the condition is defined with the `-m` option and the target/jump part with ` -j`. From this the first part of the command that we will use can be derived. Placeholders for the missing parts are added as well:
 
 ~~~shell
-sudo iptables -A PREROUTING -t mangle -m <Condition> -j <Target/Jump>
+iptables -A PREROUTING -t mangle -m <Condition> -j <Target/Jump>
 ~~~
 
 The condition can be defined via the previously installed `geoip` module:
@@ -202,10 +202,10 @@ dev="eth0"
 dev_subnet_cidr=$(ipcalc $(ip -o -f inet addr show $dev | awk '/scope global/ {print $4}') | awk '/Network:/ {print $2}')
 
 # mark outgoing packages to international destinations (outside of Germany) with marker 2
-sudo iptables -A PREROUTING -t mangle -m geoip ! --dst-cc CN -i $dev -j MARK --set-mark 2
+iptables -A PREROUTING -t mangle -m geoip ! --dst-cc DE -i $dev -j MARK --set-mark 2
 
 # mark outgoing packages to domestic locations (Germany in my case) with marker 3
-sudo iptables -A PREROUTING -t mangle -m geoip --dst-cc CN -i $dev ! -d $dev_subnet_cidr -j MARK --set-mark 3
+iptables -A PREROUTING -t mangle -m geoip --dst-cc DE -i $dev ! -d $dev_subnet_cidr -j MARK --set-mark 3
 ~~~
 
 The variable `dev_subnet_cidr` used at the top of this script will in my case hold the value `192.168.0.0/24`. To adapt this example to your own situation, you have to replace the variable `dev` with the name of your local network adapter and the country code `DE` with the country code of the country in which the RaspberryPi is located. In the next step, we have to define a separate routing table for marker 2 and 3.
@@ -229,10 +229,10 @@ With the tool `ip-rule` we now add a rule to the RPDB that has a selector `fwmar
 
 ~~~shell
 # routing table for IP packets towards international destinations
-sudo ip rule add fwmark 2 table 2 prio 15000
+ip rule add fwmark 2 table 2 prio 15000
 
 # routing table for IP packets towards domestic destinations
-sudo ip rule add fwmark 3 table 3 prio 15100
+ip rule add fwmark 3 table 3 prio 15100
 ~~~
 
 Now our two routing tables have been created and the condition for `fwmark` is visible:
@@ -250,7 +250,7 @@ If a local computer connected now via LAN and uses the Raspberry Pi as a router/
 
 ~~~ shell
 # Prohibit packets towards international destinations (overridden by up.sh)
-sudo ip route add prohibit default table 2
+ip route add prohibit default table 2
 ~~~
 
 The used `prohibit` routing rule is defined according to the ip-route manpage as:
@@ -265,20 +265,20 @@ Traffic to domestic destinations is routed through the domestic table, which we 
 
 ~~~ shell
 # Route for domestic packets
-sudo ip route add default table 3 via $router_ip dev $dev
+ip route add default table 3 via $router_ip dev $dev
 ~~~
 
 OpenVPN can execute a script `up` and` down` when establishing and disconnecting a connection. This can be added in the `.ovpn` configuration file with` up up.sh` and `down down.sh`. The script `up.sh`, which is executed after VPN connection establishment, must extend the international routing table with default routes over the newly installed tunnel device. We define the file `up.sh`:
 
 ~~~ shell
 #!/bin/bash
-
+set -e
 # Configure tunnel as default routes for table international
-sudo ip route add 0.0.0.0/1 via $route_vpn_gateway dev $dev table 2
-sudo ip route add 128.0.0.0/1 via $route_vpn_gateway dev $dev table 2
+ip route add 0.0.0.0/1 via $route_vpn_gateway dev $dev table 2
+ip route add 128.0.0.0/1 via $route_vpn_gateway dev $dev table 2
 
 # SNAT for packages routed via the tunnel
-sudo iptables -t nat -A POSTROUTING -o $dev -j MASQUERADE
+iptables -t nat -A POSTROUTING -o $dev -j MASQUERADE
 ~~~
 
 So that we can leave the default route via `prohibit`, we use longest prefix matching here and defined the new default route via VPN using:
@@ -292,13 +292,13 @@ So that this configuration can be made undone when the VPN connection is disconn
 
 ~~~ shell
 #!/bin/bash
-
+set -e
 # Remove tunnel as default routes for table international
-sudo ip route del $untrusted_ip via $route_net_gateway dev eth0 table 2
-sudo ip route del $eth0_network dev eth0 proto dhcp scope link src $eth0_ip metric 202 table 2
+ip route del $untrusted_ip via $route_net_gateway dev eth0 table 2
+ip route del $eth0_network dev eth0 proto dhcp scope link src $eth0_ip metric 202 table 2
 
 # Remove SNAT for packages routed via the tunnel
-sudo iptables -t nat -D POSTROUTING -o $dev -j MASQUERADE
+iptables -t nat -D POSTROUTING -o $dev -j MASQUERADE
 ~~~
 
 Please note that we use source NAT on the packets that are routed via the VPN tunnel. This hides the internal network from incoming internet connections and the VPN provider for security reasons.
@@ -354,13 +354,13 @@ VPN packets that were to be routed back to a computer in the LAN via tun0 also h
 To find this out, I used the LOG functionality of IPTables to log all packets with marker 2 (international). The goal was to understand where the packets were going to:
 
 ~~~ shell
-sudo iptables -A PREROUTING -t mangle  -j LOG --log-prefix "PREROUTING mangle :" -m mark --mark 2
-sudo iptables -A INPUT -t filter  -j LOG --log-prefix "INPUT filter :" -m mark --mark 2
-sudo iptables -A OUTPUT -t filter  -j LOG --log-prefix "OUTPUT filter :" -m mark --mark 2
-sudo iptables -A OUTPUT -t raw  -j LOG --log-prefix "OUTPUT raw :" -m mark --mark 2
-sudo iptables -A POSTROUTING -t mangle  -j LOG --log-prefix "POSTROUTING mangle :" -m mark --mark 2
-sudo iptables -A FORWARD -t filter  -j LOG --log-prefix "FORWARD filter :" -m mark --mark 2
-sudo iptables -A FORWARD -t mangle  -j LOG --log-prefix "FORWARD mangle :" -m mark --mark 2
+iptables -A PREROUTING -t mangle  -j LOG --log-prefix "PREROUTING mangle :" -m mark --mark 2
+iptables -A INPUT -t filter  -j LOG --log-prefix "INPUT filter :" -m mark --mark 2
+iptables -A OUTPUT -t filter  -j LOG --log-prefix "OUTPUT filter :" -m mark --mark 2
+iptables -A OUTPUT -t raw  -j LOG --log-prefix "OUTPUT raw :" -m mark --mark 2
+iptables -A POSTROUTING -t mangle  -j LOG --log-prefix "POSTROUTING mangle :" -m mark --mark 2
+iptables -A FORWARD -t filter  -j LOG --log-prefix "FORWARD filter :" -m mark --mark 2
+iptables -A FORWARD -t mangle  -j LOG --log-prefix "FORWARD mangle :" -m mark --mark 2
 ~~~
 
 Then I watched the logged packets on the shell, e.g. for the FORWARD chains:
