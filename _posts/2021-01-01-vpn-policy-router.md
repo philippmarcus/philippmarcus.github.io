@@ -349,7 +349,7 @@ The response flow is essentially exactly the opposite direction, whereby the res
 ## Lessons Learned und Debugging
 
 Perhaps my biggest learning step in this project was how to use the debugging tools correctly. At first, I forgot to restrict the marking only to packets received via the eth0 interface. The consequence of this was that 
-VPN packets that were to be routed back to a computer in the LAN via tun0 also have received this marker and consequently were sent to the domestic routing table. There, no matching rule was found for packets towards the home network. Thus, only domestic routing worked in the beginning, but not international routing.
+VPN packets that were to be routed back to a computer in the LAN via tun0 also have received this marker and consequently were sent to the international routing table. There, no matching rule was found for packets towards the home network. Thus, only domestic routing worked in the beginning, but not international routing.
 
 To find this out, I used the LOG functionality of IPTables to log all packets with marker 2 (international). The goal was to understand where the packets were going to:
 
